@@ -13,7 +13,7 @@ pub enum VerifierError {
     VkeyParseError(#[from] serde_json_wasm::de::Error),
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq)]
 struct BigInteger256 {
     val: [u64; 4],
 }
@@ -171,7 +171,7 @@ impl From<ark_bn254::Fq12> for Fq12 {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq)]
 struct G1Affine {
     x: BigInteger256,
     y: BigInteger256,
@@ -322,7 +322,7 @@ impl From<ark_groth16::VerifyingKey<ark_bn254::Bn254>> for VerifyingKey {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
-struct PreparedVerifyingKey {
+pub struct PreparedVerifyingKey {
     vk: VerifyingKey,
     alpha_g1_beta_g2: Fq12,
     gamma_g2_neg_pc: G2Prepared,
@@ -380,6 +380,13 @@ pub fn parse_verification_key(vkey_str: String) -> Result<VerificationKeyJson> {
     Ok(vkey)
 }
 
+/// A helper function to parse verification key json into a prepared
+/// verifying key.
+pub fn get_prepared_verifying_key(vkey: VerificationKeyJson) -> PreparedVerifyingKey {
+    let parse_vkey: ark_groth16::VerifyingKey<ark_bn254::Bn254> = vkey.into();
+    ark_groth16::prepare_verifying_key(&parse_vkey).into()
+}
+
 fn fq_from_str(s: String) -> ark_bn254::Fq {
     ark_bn254::Fq::from_str(&s).unwrap()
 }
@@ -431,9 +438,8 @@ impl From<VerificationKeyJson> for ark_groth16::VerifyingKey<ark_bn254::Bn254> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_parse_valid_verification_key() {
-        let vkey_str = r#"
+    fn get_vkey() -> &'static str {
+        r#"
         {
             "protocol": "groth16",
             "curve": "bn128",
@@ -528,7 +534,12 @@ mod tests {
              ]
             ]
            }
-        "#;
+        "#
+    }
+
+    #[test]
+    fn test_parse_valid_verification_key() {
+        let vkey_str = get_vkey();
         let vkey = parse_verification_key(vkey_str.to_string()).unwrap();
         assert_eq!(vkey.protocol, "groth16");
         assert_eq!(vkey.curve, "bn128");
@@ -634,5 +645,27 @@ mod tests {
             vkey.err().expect("Invalid Vkey").to_string(),
             "Failed to parse verification key json"
         );
+    }
+
+    #[test]
+    fn test_prepared_verification_key() {
+        let vkey_str = get_vkey();
+        let vkey = parse_verification_key(vkey_str.to_string()).unwrap();
+        let prepared_vkey = get_prepared_verifying_key(vkey);
+        let x: BigInteger256 = BigInteger256::new([
+            3849113555213797469,
+            6739222786987396424,
+            12326519530335657568,
+            1370802584083018133,
+        ]);
+        let y: BigInteger256 = BigInteger256::new([
+            4512379106493624362,
+            17993990849293210707,
+            4595186547289003824,
+            3243545112665201079,
+        ]);
+        let g1 = G1Affine::new(x, y, false);
+
+        assert_eq!(g1, prepared_vkey.vk.alpha_g1);
     }
 }
