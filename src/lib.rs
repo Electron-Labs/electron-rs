@@ -1,4 +1,6 @@
-mod verifier;
+// Copyright © 2022, Electron Labs
+
+pub mod verifier;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right
