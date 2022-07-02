@@ -130,15 +130,15 @@ impl From<Fq6> for ark_bn254::Fq6 {
         let c0: ark_bn254::Fq2 = src.c0.into();
         let c1: ark_bn254::Fq2 = src.c1.into();
         let c2: ark_bn254::Fq2 = src.c2.into();
-        ark_bn254::Fq6::new(c0.into(), c1.into(), c2.into())
+        ark_bn254::Fq6::new(c0, c1, c2)
     }
 }
 
 impl From<ark_bn254::Fq6> for Fq6 {
     fn from(src: ark_bn254::Fq6) -> Fq6 {
-        let c0: ark_bn254::Fq2 = src.c0.into();
-        let c1: ark_bn254::Fq2 = src.c1.into();
-        let c2: ark_bn254::Fq2 = src.c2.into();
+        let c0: ark_bn254::Fq2 = src.c0;
+        let c1: ark_bn254::Fq2 = src.c1;
+        let c2: ark_bn254::Fq2 = src.c2;
         Fq6::new(c0.into(), c1.into(), c2.into())
     }
 }
@@ -159,14 +159,14 @@ impl From<Fq12> for ark_bn254::Fq12 {
     fn from(src: Fq12) -> ark_bn254::Fq12 {
         let c0: ark_bn254::Fq6 = src.c0.into();
         let c1: ark_bn254::Fq6 = src.c1.into();
-        ark_bn254::Fq12::new(c0.into(), c1.into())
+        ark_bn254::Fq12::new(c0, c1)
     }
 }
 
 impl From<ark_bn254::Fq12> for Fq12 {
     fn from(src: ark_bn254::Fq12) -> Fq12 {
-        let c0: ark_bn254::Fq6 = src.c0.into();
-        let c1: ark_bn254::Fq6 = src.c1.into();
+        let c0: ark_bn254::Fq6 = src.c0;
+        let c1: ark_bn254::Fq6 = src.c1;
         Fq12::new(c0.into(), c1.into())
     }
 }
@@ -223,8 +223,8 @@ impl G2Affine {
 
 impl From<ark_bn254::G2Affine> for G2Affine {
     fn from(src: ark_bn254::G2Affine) -> G2Affine {
-        let x: ark_bn254::Fq2 = src.x.into();
-        let y: ark_bn254::Fq2 = src.y.into();
+        let x: ark_bn254::Fq2 = src.x;
+        let y: ark_bn254::Fq2 = src.y;
         G2Affine::new(x.into(), y.into(), src.infinity)
     }
 }
@@ -233,7 +233,7 @@ impl From<G2Affine> for ark_bn254::G2Affine {
     fn from(src: G2Affine) -> ark_bn254::G2Affine {
         let x: ark_bn254::Fq2 = src.x.into();
         let y: ark_bn254::Fq2 = src.y.into();
-        ark_bn254::G2Affine::new(x.into(), y.into(), src.infinity)
+        ark_bn254::G2Affine::new(x, y, src.infinity)
     }
 }
 
@@ -254,13 +254,11 @@ impl G2Prepared {
 
 impl From<ark_ec::bn::G2Prepared<ark_bn254::Parameters>> for G2Prepared {
     fn from(src: ark_ec::bn::G2Prepared<ark_bn254::Parameters>) -> G2Prepared {
-        let ark_ell_coeffs: Vec<(ark_bn254::Fq2, ark_bn254::Fq2, ark_bn254::Fq2)> = src
+        let ark_ell_coeffs = src
             .ell_coeffs
             .into_iter()
-            .map(|elem| (elem.0.into(), elem.1.into(), elem.2.into()))
-            .collect();
+            .map(|elem| (elem.0, elem.1, elem.2));
         let ell_coeffs: Vec<(Fq2, Fq2, Fq2)> = ark_ell_coeffs
-            .into_iter()
             .map(|elem| (elem.0.into(), elem.1.into(), elem.2.into()))
             .collect();
         G2Prepared::new(ell_coeffs, src.infinity)
@@ -269,15 +267,13 @@ impl From<ark_ec::bn::G2Prepared<ark_bn254::Parameters>> for G2Prepared {
 
 impl From<G2Prepared> for ark_ec::bn::G2Prepared<ark_bn254::Parameters> {
     fn from(src: G2Prepared) -> ark_ec::bn::G2Prepared<ark_bn254::Parameters> {
-        let ark_ell_coeffs: Vec<(ark_bn254::Fq2, ark_bn254::Fq2, ark_bn254::Fq2)> = src
+        let ark_ell_coeffs = src
             .ell_coeffs
             .into_iter()
-            .map(|elem| (elem.0.into(), elem.1.into(), elem.2.into()))
-            .collect();
+            .map(|elem| (elem.0.into(), elem.1.into(), elem.2.into()));
         ark_ec::bn::G2Prepared {
             ell_coeffs: ark_ell_coeffs
-                .into_iter()
-                .map(|elem| (elem.0.into(), elem.1.into(), elem.2.into()))
+                .map(|elem| (elem.0, elem.1, elem.2))
                 .collect(),
             infinity: src.infinity,
         }
@@ -380,23 +376,22 @@ pub struct VerificationKeyJson {
 /// This function will return an error if it fails to parse the verification
 /// key json file returned by circom.
 pub fn parse_verification_key(vkey_str: String) -> Result<VerificationKeyJson> {
-    let vkey = serde_json_wasm::from_str(&vkey_str)
-        .map_err(|e| VerifierError::VkeyParseError(e.into()))?;
+    let vkey = serde_json_wasm::from_str(&vkey_str).map_err(VerifierError::VkeyParseError)?;
     Ok(vkey)
 }
 
 fn fq_from_str(s: String) -> ark_bn254::Fq {
-    return ark_bn254::Fq::from_str(&s).unwrap();
+    ark_bn254::Fq::from_str(&s).unwrap()
 }
 
-fn g1_from_str(g1: &Vec<String>) -> ark_bn254::G1Affine {
+fn g1_from_str(g1: &[String]) -> ark_bn254::G1Affine {
     let x = fq_from_str(g1[0].clone());
     let y = fq_from_str(g1[1].clone());
     let z = fq_from_str(g1[2].clone());
-    return ark_bn254::G1Affine::from(ark_bn254::G1Projective::new(x, y, z));
+    ark_bn254::G1Affine::from(ark_bn254::G1Projective::new(x, y, z))
 }
 
-fn g2_from_str(g2: &Vec<Vec<String>>) -> ark_bn254::G2Affine {
+fn g2_from_str(g2: &[Vec<String>]) -> ark_bn254::G2Affine {
     let c0 = fq_from_str(g2[0][0].clone());
     let c1 = fq_from_str(g2[0][1].clone());
     let x = ark_bn254::Fq2::new(c0, c1);
@@ -409,7 +404,7 @@ fn g2_from_str(g2: &Vec<Vec<String>>) -> ark_bn254::G2Affine {
     let c1 = fq_from_str(g2[2][1].clone());
     let z = ark_bn254::Fq2::new(c0, c1);
 
-    return ark_bn254::G2Affine::from(ark_bn254::G2Projective::new(x, y, z));
+    ark_bn254::G2Affine::from(ark_bn254::G2Projective::new(x, y, z))
 }
 
 impl From<VerificationKeyJson> for ark_groth16::VerifyingKey<ark_bn254::Bn254> {
@@ -420,7 +415,7 @@ impl From<VerificationKeyJson> for ark_groth16::VerifyingKey<ark_bn254::Bn254> {
         let delta_g2_ = g2_from_str(&src.vk_delta_2);
 
         let gamma_abc_g1_: Vec<ark_bn254::G1Affine> =
-            src.ic.iter().map(|x| g1_from_str(&x)).collect();
+            src.ic.iter().map(|x| g1_from_str(x)).collect();
 
         ark_groth16::VerifyingKey {
             alpha_g1: alpha_g1_,
