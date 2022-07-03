@@ -9,8 +9,8 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum VerifierError {
-    #[error("Failed to parse verification key json")]
-    VkeyParseError(#[from] serde_json_wasm::de::Error),
+    #[error("Failed to parse circom {0} json")]
+    ParseError(String),
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq)]
@@ -368,6 +368,39 @@ pub struct VerificationKeyJson {
     ic: Vec<Vec<String>>,
 }
 
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct CircomProofJson {
+    pi_a: Vec<String>,
+    pi_b: Vec<Vec<String>>,
+    pi_c: Vec<String>,
+    protocol: String,
+    curve: String,
+}
+
+impl From<CircomProofJson> for ark_groth16::Proof<ark_bn254::Bn254> {
+    fn from(src: CircomProofJson) -> Self {
+        ark_groth16::Proof {
+            a: g1_from_str(&src.pi_a),
+            b: g2_from_str(&src.pi_b),
+            c: g1_from_str(&src.pi_c),
+        }
+    }
+}
+
+fn parse_circom_proof(proof: String) -> Result<CircomProofJson> {
+    let proof = serde_json_wasm::from_str(&proof)
+        .map_err(|_| VerifierError::ParseError("proof".to_string()))?;
+    Ok(proof)
+}
+
+fn parse_public_inputs(inputs: String) -> Result<Vec<String>> {
+    let pub_inputs: Vec<String> = serde_json_wasm::from_str(&inputs)
+        .map_err(|_| VerifierError::ParseError("public inputs".to_string()))?;
+    Ok(pub_inputs)
+}
+
 /// A helper function to parse raw verification key json returned by circom.
 ///
 /// # Errors
@@ -376,7 +409,8 @@ pub struct VerificationKeyJson {
 /// This function will return an error if it fails to parse the verification
 /// key json file returned by circom.
 pub fn parse_verification_key(vkey_str: String) -> Result<VerificationKeyJson> {
-    let vkey = serde_json_wasm::from_str(&vkey_str).map_err(VerifierError::VkeyParseError)?;
+    let vkey = serde_json_wasm::from_str(&vkey_str)
+        .map_err(|_| VerifierError::ParseError("verification key".to_string()))?;
     Ok(vkey)
 }
 
@@ -387,8 +421,28 @@ pub fn get_prepared_verifying_key(vkey: VerificationKeyJson) -> PreparedVerifyin
     ark_groth16::prepare_verifying_key(&parse_vkey).into()
 }
 
+/// A helper function to verify proof
+pub fn verify_proof(
+    pvk: PreparedVerifyingKey,
+    proof_str: String,
+    pub_inputs_str: String,
+) -> Result<bool> {
+    let proof = parse_circom_proof(proof_str)?;
+    let pub_inputs = parse_public_inputs(pub_inputs_str)?;
+    let ark_pub_inputs: Vec<ark_bn254::Fr> = pub_inputs.into_iter().map(fr_from_str).collect();
+
+    // TODO: Convert this to a proper error type of Bolt-rs
+    let res = ark_groth16::verify_proof(&pvk.into(), &proof.into(), &ark_pub_inputs[..]).unwrap();
+
+    Ok(res)
+}
+
 fn fq_from_str(s: String) -> ark_bn254::Fq {
     ark_bn254::Fq::from_str(&s).unwrap()
+}
+
+pub fn fr_from_str(s: String) -> ark_bn254::Fr {
+    ark_bn254::Fr::from_str(&s).unwrap()
 }
 
 fn g1_from_str(g1: &[String]) -> ark_bn254::G1Affine {
@@ -643,7 +697,7 @@ mod tests {
         assert!(vkey.is_err());
         assert_eq!(
             vkey.err().expect("Invalid Vkey").to_string(),
-            "Failed to parse verification key json"
+            "Failed to parse circom verification key json"
         );
     }
 
@@ -667,5 +721,18 @@ mod tests {
         let g1 = G1Affine::new(x, y, false);
 
         assert_eq!(g1, prepared_vkey.vk.alpha_g1);
+    }
+
+    #[test]
+    fn test_parse_public_input() {
+        let pub_input_str = r#"[
+            "1",
+            "277989581668086710587965336712738880284",
+            "314891321346369595428838678892844352460"
+        ]"#;
+        let inputs = parse_public_inputs(pub_input_str.to_string()).unwrap();
+        assert_eq!("1", inputs[0]);
+        assert_eq!("277989581668086710587965336712738880284", inputs[1]);
+        assert_eq!("314891321346369595428838678892844352460", inputs[2]);
     }
 }
