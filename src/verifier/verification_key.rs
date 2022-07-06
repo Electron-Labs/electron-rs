@@ -13,7 +13,7 @@ pub enum VerifierError {
     ParseError(String),
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq, Clone)]
 struct BigInteger256 {
     val: [u64; 4],
 }
@@ -36,7 +36,7 @@ impl From<ark_ff::BigInteger256> for BigInteger256 {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, Clone)]
 struct Fr {
     c0: BigInteger256,
 }
@@ -59,7 +59,7 @@ impl From<ark_bn254::Fr> for Fr {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq, Clone)]
 struct Fq {
     c0: BigInteger256,
 }
@@ -82,7 +82,7 @@ impl From<ark_bn254::Fq> for Fq {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq, Clone)]
 struct Fq2 {
     c0: BigInteger256,
     c1: BigInteger256,
@@ -108,7 +108,7 @@ impl From<ark_bn254::Fq2> for Fq2 {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq, Clone)]
 struct Fq6 {
     c0: Fq2,
     c1: Fq2,
@@ -143,7 +143,7 @@ impl From<ark_bn254::Fq6> for Fq6 {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq, Clone)]
 struct Fq12 {
     c0: Fq6,
     c1: Fq6,
@@ -171,7 +171,7 @@ impl From<ark_bn254::Fq12> for Fq12 {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq, Clone)]
 struct G1Affine {
     x: BigInteger256,
     y: BigInteger256,
@@ -204,7 +204,7 @@ impl From<ark_bn254::G1Affine> for G1Affine {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq, Clone)]
 struct G2Affine {
     x: Fq2,
     y: Fq2,
@@ -237,7 +237,7 @@ impl From<G2Affine> for ark_bn254::G2Affine {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq, Clone)]
 struct G2Prepared {
     ell_coeffs: Vec<(Fq2, Fq2, Fq2)>,
     infinity: bool,
@@ -280,7 +280,7 @@ impl From<G2Prepared> for ark_ec::bn::G2Prepared<ark_bn254::Parameters> {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq, Clone)]
 struct VerifyingKey {
     alpha_g1: G1Affine,
     beta_g2: G2Affine,
@@ -321,7 +321,7 @@ impl From<ark_groth16::VerifyingKey<ark_bn254::Bn254>> for VerifyingKey {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq, Clone)]
 pub struct PreparedVerifyingKey {
     vk: VerifyingKey,
     alpha_g1_beta_g2: Fq12,
