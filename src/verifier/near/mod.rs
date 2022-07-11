@@ -376,7 +376,6 @@ pub struct CircomProofJson {
     pi_b: Vec<Vec<String>>,
     pi_c: Vec<String>,
     protocol: String,
-    curve: String,
 }
 
 impl From<CircomProofJson> for ark_groth16::Proof<ark_bn254::Bn254> {
@@ -864,8 +863,7 @@ mod tests {
               "15053058905266236652562457399329328685910831643948235107886315836157181001907",
               "1"
             ],
-            "protocol": "groth16",
-            "curve": "bn128"
+            "protocol": "groth16"
         }
         "#;
         let pub_input_str = r#"
