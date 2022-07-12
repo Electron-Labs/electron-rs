@@ -1,6 +1,7 @@
 // Copyright © 2022, Electron Labs
 
 use anyhow::Result;
+use ark_serialize::CanonicalDeserialize;
 use borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::serde::Deserialize;
 use serde_json_wasm;
@@ -420,6 +421,27 @@ pub fn parse_verification_key(vkey_str: String) -> Result<VerificationKeyJson> {
 pub fn get_prepared_verifying_key(vkey: VerificationKeyJson) -> PreparedVerifyingKey {
     let parse_vkey: ark_groth16::VerifyingKey<ark_bn254::Bn254> = vkey.into();
     ark_groth16::prepare_verifying_key(&parse_vkey).into()
+}
+
+/// Verify a Groth16 proof `proof` against the prepared verification key `pvk`,
+/// and prepared serialised `public_inputs`.
+pub fn verify_proof_with_prepared_inputs_serialised(
+    pvk: PreparedVerifyingKey,
+    proof_str: String,
+    prepared_input_serialised: Vec<u8>,
+) -> Result<bool> {
+    let proof = parse_circom_proof(proof_str)?;
+    let mut prepared_input_serialised_fixed: Vec<u8> = vec![0; 64];
+    prepared_input_serialised_fixed[..64].copy_from_slice(&prepared_input_serialised[..64]);
+    let prepared_input =
+        ark_bn254::G1Projective::deserialize_uncompressed(&prepared_input_serialised_fixed[..])
+            .expect("failed");
+
+    let res =
+        ark_groth16::verify_proof_with_prepared_inputs(&pvk.into(), &proof.into(), &prepared_input)
+            .unwrap();
+
+    Ok(res)
 }
 
 /// A helper function to verify proof
@@ -970,6 +992,55 @@ mod tests {
             prepared_vkey,
             proof_str.to_string(),
             pub_input_str.to_string(),
+        );
+        assert!(res.unwrap());
+    }
+
+    #[test]
+    fn test_valid_proof_serialised_inputs() {
+        let proof_str = r#"
+        {
+            "pi_a": [
+                "5235430556346554802567861299785871453673122179421411654896621875243158094048",
+                "12829135050884446826455752231315295047625926106262997440926466322996228772251",
+                "1"
+            ],
+            "pi_b": [
+                [
+                    "9629165664239167428723265191562711523565281904016347097618206719867935725538",
+                    "6713749670959039921232271832297333835868979206992276128586675836120076935940"
+                ],
+                [
+                    "16082960702148845979557683549522332489602152533832190991512003075152912170407",
+                    "2775843940087749431455768044267731380384036129330912369981517889792183170327"
+                ],
+                [
+                    "1",
+                    "0"
+                ]
+            ],
+            "pi_c": [
+                "10136244983900361762756784267260549844757606569358023860733464579365269427945",
+                "18477850757559803952594566649839892386091652747066558432951795725154004105095",
+                "1"
+            ],
+            "protocol": "groth16"
+        }
+        "#;
+        let pub_input_serialised: Vec<u8> = vec![
+            128, 201, 21, 18, 33, 45, 29, 84, 180, 196, 214, 110, 40, 34, 135, 98, 230, 176, 11,
+            181, 23, 73, 226, 179, 177, 169, 112, 163, 147, 38, 146, 22, 224, 156, 235, 51, 156,
+            28, 5, 92, 114, 16, 224, 20, 247, 119, 61, 247, 108, 8, 198, 169, 236, 208, 245, 159,
+            15, 62, 5, 136, 255, 73, 79, 20,
+        ];
+        let vkey_str = get_vkey();
+        let vkey = parse_verification_key(vkey_str.to_string()).unwrap();
+        let prepared_vkey = get_prepared_verifying_key(vkey);
+
+        let res = verify_proof_with_prepared_inputs_serialised(
+            prepared_vkey,
+            proof_str.to_string(),
+            pub_input_serialised,
         );
         assert!(res.unwrap());
     }
