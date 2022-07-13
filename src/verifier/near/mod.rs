@@ -12,6 +12,10 @@ use thiserror::Error;
 pub enum VerifierError {
     #[error("Failed to parse circom {0} json")]
     ParseError(String),
+    #[error("Failed to deserialize {0}")]
+    DeserializationError(String),
+    #[error("Failed to verify proof: {0}")]
+    VerificationError(String),
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq, Clone)]
@@ -435,11 +439,13 @@ pub fn verify_proof_with_prepared_inputs_serialised(
     prepared_input_serialised_fixed[..64].copy_from_slice(&prepared_input_serialised[..64]);
     let prepared_input =
         ark_bn254::G1Projective::deserialize_uncompressed(&prepared_input_serialised_fixed[..])
-            .expect("failed");
+            .map_err(|_| {
+                VerifierError::DeserializationError("serialized public inputs".to_string())
+            })?;
 
     let res =
         ark_groth16::verify_proof_with_prepared_inputs(&pvk.into(), &proof.into(), &prepared_input)
-            .unwrap();
+            .map_err(|err| VerifierError::VerificationError(format!("{}", err)))?;
 
     Ok(res)
 }
@@ -1043,5 +1049,58 @@ mod tests {
             pub_input_serialised,
         );
         assert!(res.unwrap());
+    }
+
+    #[test]
+    fn test_invalid_proof_serialised_inputs() {
+        let proof_str = r#"
+        {
+            "pi_a": [
+                "5235430556346554802567861299785871453673122179421411654896621875243158094048",
+                "12829135050884446826455752231315295047625926106262997440926466322996228772251",
+                "1"
+            ],
+            "pi_b": [
+                [
+                    "9629165664239167428723265191562711523565281904016347097618206719867935725538",
+                    "6713749670959039921232271832297333835868979206992276128586675836120076935940"
+                ],
+                [
+                    "16082960702148845979557683549522332489602152533832190991512003075152912170407",
+                    "2775843940087749431455768044267731380384036129330912369981517889792183170327"
+                ],
+                [
+                    "1",
+                    "0"
+                ]
+            ],
+            "pi_c": [
+                "10136244983900361762756784267260549844757606569358023860733464579365269427945",
+                "18477850757559803952594566649839892386091652747066558432951795725154004105095",
+                "1"
+            ],
+            "protocol": "groth16"
+        }
+        "#;
+        let pub_input_serialised: Vec<u8> = vec![
+            128, 201, 21, 18, 33, 45, 29, 84, 180, 196, 214, 110, 40, 34, 135, 98, 230, 176, 11,
+            181, 23, 73, 226, 179, 177, 169, 112, 163, 147, 38, 146, 22, 224, 156, 235, 51, 156,
+            28, 5, 92, 114, 16, 224, 20, 247, 119, 61, 247, 108, 8, 198, 169, 236, 208, 245, 159,
+            15, 62, 5, 136, 255, 73, 79, 21,
+        ];
+        let vkey_str = get_vkey();
+        let vkey = parse_verification_key(vkey_str.to_string()).unwrap();
+        let prepared_vkey = get_prepared_verifying_key(vkey);
+
+        let res = verify_proof_with_prepared_inputs_serialised(
+            prepared_vkey,
+            proof_str.to_string(),
+            pub_input_serialised,
+        );
+        assert!(res.is_err());
+        assert_eq!(
+            res.expect_err("Invalid pub inputs").to_string(),
+            "Failed to deserialize serialized public inputs"
+        );
     }
 }
