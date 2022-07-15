@@ -24,6 +24,9 @@ jobs:
           override: true
           components: rustfmt, clippy
 
+      - name: Check commit formatting
+        run: "pip3 install pytest && pytest -s $(find . -type f -name \"test_commit_format.py\")"
+
       - name: Formatting (rustfmt)
         run: cargo fmt -- --check
 
