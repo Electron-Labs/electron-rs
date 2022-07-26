@@ -1,4 +1,4 @@
-name: Bolt-rs quality checks
+name: Electron-rs quality checks
 on: [pull_request, create]
 
 jobs:
