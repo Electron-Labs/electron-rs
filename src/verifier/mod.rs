@@ -1,10 +1,10 @@
 // Copyright © 2022, Electron Labs
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use near_sdk::serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
-pub mod near;
+// pub mod near;
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq, Clone)]
 struct BigInteger256 {
@@ -305,12 +305,20 @@ fn g2_from_str(g2: &[Vec<String>]) -> ark_bn254::G2Affine {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq, Clone)]
-struct VerifyingKey {
+pub struct VerifyingKey {
     alpha_g1: G1Affine,
     beta_g2: G2Affine,
     gamma_g2: G2Affine,
     delta_g2: G2Affine,
     gamma_abc_g1: Vec<G1Affine>,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq, Clone)]
+pub struct VerifyingKeyPart1 {
+    alpha_g1: G1Affine,
+    beta_g2: G2Affine,
+    gamma_g2: G2Affine,
+    delta_g2: G2Affine,
 }
 
 impl From<VerifyingKey> for ark_groth16::VerifyingKey<ark_bn254::Bn254> {
@@ -376,8 +384,7 @@ impl From<ark_groth16::PreparedVerifyingKey<ark_bn254::Bn254>> for PreparedVerif
 }
 
 #[allow(dead_code)]
-#[derive(Deserialize, Clone)]
-#[serde(crate = "near_sdk::serde")]
+#[derive(Deserialize, Serialize, Clone, BorshSerialize, BorshDeserialize)]
 pub struct VerificationKeyJson {
     protocol: String,
     curve: String,
@@ -412,9 +419,44 @@ impl From<VerificationKeyJson> for ark_groth16::VerifyingKey<ark_bn254::Bn254> {
     }
 }
 
+impl From<VerificationKeyJson> for VerifyingKey {
+    fn from(src: VerificationKeyJson) -> Self {
+        let alpha_g1_ = g1_from_str(&src.vk_alpha_1);
+        let beta_g2_ = g2_from_str(&src.vk_beta_2);
+        let gamma_g2_ = g2_from_str(&src.vk_gamma_2);
+        let delta_g2_ = g2_from_str(&src.vk_delta_2);
+
+        let gamma_abc_g1_: Vec<G1Affine> =
+            src.ic.iter().map(|x| g1_from_str(x).into()).collect();
+
+        VerifyingKey {
+            alpha_g1: alpha_g1_.into(),
+            beta_g2: beta_g2_.into(),
+            gamma_g2: gamma_g2_.into(),
+            delta_g2: delta_g2_.into(),
+            gamma_abc_g1: gamma_abc_g1_,
+        }
+    }
+}
+
+impl From<VerificationKeyJson> for VerifyingKeyPart1 {
+    fn from(src: VerificationKeyJson) -> Self {
+        let alpha_g1_ = g1_from_str(&src.vk_alpha_1);
+        let beta_g2_ = g2_from_str(&src.vk_beta_2);
+        let gamma_g2_ = g2_from_str(&src.vk_gamma_2);
+        let delta_g2_ = g2_from_str(&src.vk_delta_2);
+
+        VerifyingKeyPart1 {
+            alpha_g1: alpha_g1_.into(),
+            beta_g2: beta_g2_.into(),
+            gamma_g2: gamma_g2_.into(),
+            delta_g2: delta_g2_.into(),
+        }
+    }
+}
+
 #[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-#[serde(crate = "near_sdk::serde")]
+#[derive(Debug, Deserialize, Serialize, BorshSerialize, BorshDeserialize)]
 pub struct CircomProofJson {
     pi_a: Vec<String>,
     pi_b: Vec<Vec<String>>,
@@ -432,4 +474,11 @@ impl From<CircomProofJson> for ark_groth16::Proof<ark_bn254::Bn254> {
             c: g1_from_str(&src.pi_c),
         }
     }
+}
+
+/// A helper function to parse verification key json into a prepared
+/// verifying key.
+pub fn get_prepared_verifying_key(vkey: VerifyingKey) -> PreparedVerifyingKey {
+    let parse_vkey: ark_groth16::VerifyingKey<ark_bn254::Bn254> = vkey.into();
+    ark_groth16::prepare_verifying_key(&parse_vkey).into()
 }

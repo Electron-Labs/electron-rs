@@ -1,17 +1,19 @@
 [package]
 name = "electron-rs"
 version = "0.1.0"
-edition = "2021"
+edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-borsh = { version = "0.9.3", features = ["const-generics"] }
+serde = "1.0.144"
+getrandom = { version = "0.2.7", features = ["custom"] }
+borsh = { version = "0.9.3" }
 ark-bn254 = { version = "0.3.0", default-features = false, features = ["curve"] }
 ark-groth16 = { git = "https://github.com/arkworks-rs/groth16", rev = "765817f", default-features = false }
-ark-ff = "0.3.0"
-ark-ec = "0.3.0"
-near-sdk = "4.0.0"
+ark-ff = { version = "0.3.0", default-features = false }
+ark-ec = { version = "0.3.0", default-features = false }
+# near-sdk = "4.0.0"
 serde-json-wasm = { version = "0.4.0" }
 anyhow = "1.0"
 thiserror = "1.0"

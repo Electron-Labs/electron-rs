@@ -36,13 +36,6 @@ pub fn parse_verification_key(vkey_str: String) -> Result<VerificationKeyJson> {
     Ok(vkey)
 }
 
-/// A helper function to parse verification key json into a prepared
-/// verifying key.
-pub fn get_prepared_verifying_key(vkey: VerificationKeyJson) -> PreparedVerifyingKey {
-    let parse_vkey: ark_groth16::VerifyingKey<ark_bn254::Bn254> = vkey.into();
-    ark_groth16::prepare_verifying_key(&parse_vkey).into()
-}
-
 /// A helper function to verify proof
 pub fn verify_proof(
     pvk: PreparedVerifyingKey,
