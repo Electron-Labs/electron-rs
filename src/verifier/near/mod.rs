@@ -3,6 +3,8 @@
 use anyhow::Result;
 use borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::serde::Deserialize;
+#[cfg(feature="serde")]
+use near_sdk::serde::Serialize;
 use serde_json_wasm;
 use std::str::FromStr;
 use thiserror::Error;
@@ -14,6 +16,7 @@ pub enum VerifierError {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq, Clone)]
+#[cfg_attr(feature="serde", derive(Serialize, Deserialize), serde(crate = "near_sdk::serde"))]
 struct BigInteger256 {
     val: [u64; 4],
 }
@@ -83,6 +86,7 @@ impl From<ark_bn254::Fq> for Fq {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq, Clone)]
+#[cfg_attr(feature="serde", derive(Serialize, Deserialize), serde(crate = "near_sdk::serde"))]
 struct Fq2 {
     c0: BigInteger256,
     c1: BigInteger256,
@@ -109,6 +113,7 @@ impl From<ark_bn254::Fq2> for Fq2 {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq, Clone)]
+#[cfg_attr(feature="serde", derive(Serialize, Deserialize), serde(crate = "near_sdk::serde"))]
 struct Fq6 {
     c0: Fq2,
     c1: Fq2,
@@ -144,6 +149,7 @@ impl From<ark_bn254::Fq6> for Fq6 {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq, Clone)]
+#[cfg_attr(feature="serde", derive(Serialize, Deserialize), serde(crate = "near_sdk::serde"))]
 struct Fq12 {
     c0: Fq6,
     c1: Fq6,
@@ -172,6 +178,7 @@ impl From<ark_bn254::Fq12> for Fq12 {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq, Clone)]
+#[cfg_attr(feature="serde", derive(Serialize, Deserialize), serde(crate = "near_sdk::serde"))]
 struct G1Affine {
     x: BigInteger256,
     y: BigInteger256,
@@ -205,6 +212,7 @@ impl From<ark_bn254::G1Affine> for G1Affine {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq, Clone)]
+#[cfg_attr(feature="serde", derive(Serialize, Deserialize), serde(crate = "near_sdk::serde"))]
 struct G2Affine {
     x: Fq2,
     y: Fq2,
@@ -238,6 +246,7 @@ impl From<G2Affine> for ark_bn254::G2Affine {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq, Clone)]
+#[cfg_attr(feature="serde", derive(Serialize, Deserialize), serde(crate = "near_sdk::serde"))]
 struct G2Prepared {
     ell_coeffs: Vec<(Fq2, Fq2, Fq2)>,
     infinity: bool,
@@ -281,6 +290,7 @@ impl From<G2Prepared> for ark_ec::bn::G2Prepared<ark_bn254::Parameters> {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq, Clone)]
+#[cfg_attr(feature="serde", derive(Serialize, Deserialize), serde(crate = "near_sdk::serde"))]
 struct VerifyingKey {
     alpha_g1: G1Affine,
     beta_g2: G2Affine,
@@ -322,6 +332,7 @@ impl From<ark_groth16::VerifyingKey<ark_bn254::Bn254>> for VerifyingKey {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq, Clone)]
+#[cfg_attr(feature="serde", derive(Serialize, Deserialize), serde(crate = "near_sdk::serde"))]
 pub struct PreparedVerifyingKey {
     vk: VerifyingKey,
     alpha_g1_beta_g2: Fq12,
